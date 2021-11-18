@@ -184,19 +184,3 @@ def round_d(data, rounds, keys):
 
 def length_keys():
     return random.randint(3,10), random.randint(5,15)
-
-def main():
-    length = int(input('Введите количество раундов: '))
-    f = open('hello.jpg', 'rb')
-    data = f.read()
-    f.close()
-    rounds = generate_rounds(length)
-    data_, keys = round_e(data, rounds,length)
-    data__ = round_d(data_, rounds, keys)
-    print(data == bytes(data__)) # одинаковы или нет
-    file = open('w1.jpg', 'wb')
-    file.write(bytes(data__))
-    print('Итоговый результат записан в файл', file.name)
-    file.close()
-if __name__ == '__main__':
-    main()

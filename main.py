@@ -104,12 +104,8 @@ if __name__ == '__main__':
             start_time = time.time()
             print(*cbc_e(text, iv), file=file)
             print("Time :", time.time() - start_time)
-            f = open("key.txt", 'w')
-            f.write(str(key))
         print("Готово")
     if sys.argv[1] == "-d":
-        f = open("key.txt", 'r')
-        key = int(f.readline())
         with open(sys.argv[2]) as file:
             text = file.read()
         with open("_decrypt.txt", 'wb') as file:
