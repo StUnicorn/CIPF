@@ -33,9 +33,6 @@ def encrypt_function(filename, login, password):
         start_time = time.time()
         print(*chif.cbc_e(text, key, chif.iv), file=file)
         print("Time :", time.time() - start_time)
-        f = open("key.txt", 'w')
-        f.write(str(key))
-        f.close()
     print("Готово")
 
 def encrypt_folder_function(file_path, login, password):
@@ -78,9 +75,7 @@ def decrypt_folder_function(file_path, login, password):
             decrypt_folder_function(os.path.join(root, dir), login, password)
 
 def decrypt_function(file_path, login, password):
-    f = open("key.txt", 'r')
     key = chif.generate_string_to_numeric_hash(password, login)
-    f.close()
     with open(file_path) as file:
         text = file.read()
     with open(file_path, 'wb') as file:
