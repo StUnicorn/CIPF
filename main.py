@@ -5,13 +5,14 @@ import time
 from tkinter import *
 from tkinter import ttk
 import hashlib
+import zipfile
 
-size_block = 64
+size_block = 64  # размер блока - 64 бит
+# дело в том, что считываемый файл представляется в байтах
+size_key = 256  # размер блока - 256 бит
+rounds_size = 32  # количество раундов
 
-size_key = 256
-rounds_size = 32
-
-
+#узлы распределения  - смотри по ссылке и Википедии
 s = (
     (4, 10, 9, 2, 13, 8, 0, 14, 6, 11, 1, 12, 7, 15, 5, 3),
     (14, 11, 4, 12, 6, 13, 15, 10, 2, 3, 8, 1, 0, 7, 5, 9),
@@ -25,11 +26,12 @@ s = (
 
 iv = 18318279387912387912789378912379821879387978238793278872378329832982398023031
 
-
+# создание 8 ключей по 4 бита из исходного ключа
 def create_sub_keys(key):
     return [(key >> (32 * i)) & 0xFFFFFFFF for i in range(8)]
 
-
+# шифрование исходного блока через xor, замена каждой 4-битной части блока в соответсвии с номером ключа по табице S
+# и последуещее их слияние
 def encrypt_and_permutation_block(right_block, key):
     global s
     temp = right_block ^ key
@@ -38,11 +40,14 @@ def encrypt_and_permutation_block(right_block, key):
         encrypt_block |= ((s[i][(temp >> (4*i)) & 0b1111]) << (4 * i))
     return ((encrypt_block >> 11) | (encrypt_block << (32 - 11))) & 0xFFFFFFFF
 
-
+# сеть Фейстеля
 def concat_e(left_block, right_block, round_key):
     return right_block, left_block ^ encrypt_and_permutation_block(right_block, round_key)
 
-
+# общая функция ширования  - разделение блока на две части, правой части присваивается левая, левой части присваивается
+# зашифрованная правая часть
+# round_key - выбор ключа для конкретного раунда, для раундов 1 - 24, ключи повторяются по порядку, последние 8 раундов, ключи идут в обратном порядке
+# эти ключи быи сформированы из исходного ключа см. create_sub_keys()
 def encrypt_function(byte, sub_keys):
     left_block = byte >> 32
     right_block = byte & 0xFFFFFFFF
@@ -51,11 +56,11 @@ def encrypt_function(byte, sub_keys):
         left_block, right_block = concat_e(left_block, right_block, round_key)
     return (left_block << 32) | right_block
 
-
+# тоже самое, что и concat_e
 def concat_d(left_block, right_block, round_key):
     return right_block ^ encrypt_and_permutation_block(left_block, round_key), left_block
 
-
+# алгоритм схож с шифрованием, но порядок ключей обратен тому, который идет при шифровании
 def decrypt_function(byte, sub_keys):
     left_block = int(byte) >> 32
     right_block = int(byte) & 0xFFFFFFFF
@@ -63,11 +68,13 @@ def decrypt_function(byte, sub_keys):
         round_key = sub_keys[i] if (i < 8) else sub_keys[((rounds_size - 1) - i) % 8]
         left_block, right_block = concat_d(left_block, right_block, round_key)
     return (left_block << 32) | right_block
-
+#функции для реализации режима CBC
 def cbc_e(blocks, key, iv):
     data_block = []
     res = iv
+    print(blocks)
     for i in range(len(blocks)):
+        print(blocks[i])
         x = blocks[i] ^ res
         res = encrypt_function(x, create_sub_keys(key))
         data_block.append(res)
@@ -82,11 +89,15 @@ def cbc_d(data_block,key, iv):
         res = data_block[i]
     return block
 
+def chif_folder(folder):
+    with zipfile.ZipFile(folder, 'w', zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr('something.txt', 'Some Content Here')
+
 def generate_string_to_numeric_hash(password, salt):
     result = int.from_bytes(hashlib.pbkdf2_hmac('sha256', bytes(password, encoding="UTF-8"), bytes(salt, encoding="UTF-8"), 10000, dklen=32), "big")
     return result
 
-
+# чтение и запись в файлы
 if __name__ == '__main__':
     start_time = ""
     if (len(sys.argv) != 3) and (sys.argv[1] != "-e" and sys.argv[1] != "-d"):
@@ -104,8 +115,12 @@ if __name__ == '__main__':
             start_time = time.time()
             print(*cbc_e(text, iv), file=file)
             print("Time :", time.time() - start_time)
+            f = open("key.txt", 'w')
+            f.write(str(key))
         print("Готово")
     if sys.argv[1] == "-d":
+        f = open("key.txt", 'r')
+        key = int(f.readline())
         with open(sys.argv[2]) as file:
             text = file.read()
         with open("_decrypt.txt", 'wb') as file:
